@@ -1,0 +1,67 @@
+SPI (Serial Peripheral Interface) üzerinden veri okumak ve göndermek için, Arduino'da birkaç adım izleyebilirsin. İşlem temelde, bir Master ve Slave cihazı arasında veri iletimi sağlar. Arduino Nano ve Mega, SPI iletişimini destekler.
+
+Aşağıda, SPI üzerinden veri gönderme ve alma için temel bir örnek bulacaksın:
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1. SPI Bağlantılarını Yapma:
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+MOSI (Master Out Slave In): Veri gönderme pinidir.
+MISO (Master In Slave Out): Veri okuma pinidir.
+SCK (Clock): Saat sinyali pinidir.
+SS (Slave Select): Slave cihazı seçmek için kullanılır.
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+2. Master (Veri Gönderen Arduino) Kod Örneği:
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#include <SPI.h>
+
+void setup() {
+  // SPI Master cihazını başlat
+  SPI.begin();
+  pinMode(SS, OUTPUT);  // Slave cihazını seçmek için SS pinini OUTPUT yapıyoruz
+  Serial.begin(9600);  // Seri haberleşme başlatılıyor
+}
+
+void loop() {
+  digitalWrite(SS, LOW);  // Slave cihazını seç
+  byte dataToSend = 0x42; // Göndereceğiniz veri (örneğin 0x42)
+  byte receivedData = SPI.transfer(dataToSend); // Veri gönder ve al
+  Serial.print("Gönderilen veri: ");
+  Serial.println(dataToSend, HEX);
+  Serial.print("Alınan veri: ");
+  Serial.println(receivedData, HEX);
+  digitalWrite(SS, HIGH); // Slave cihazını serbest bırak
+  delay(1000); // 1 saniye bekle
+}
+3. Slave (Veri Okuyan Arduino) Kod Örneği:
+cpp
+Kopyala
+Düzenle
+#include <SPI.h>
+
+volatile byte receivedData = 0;
+
+void setup() {
+  // SPI Slave cihazını başlat
+  SPI.begin();
+  pinMode(MISO, OUTPUT); // Slave cihazı veri gönderebilir
+  Serial.begin(9600);    // Seri haberleşme başlatılıyor
+  SPCR |= _BV(SPE);      // SPI'yi çalıştırmak için SPE bitini set et
+}
+
+void loop() {
+  if (SPI.available()) {
+    receivedData = SPI.transfer(0x00); // Slave cihazı veri alır
+    Serial.print("Alınan veri: ");
+    Serial.println(receivedData, HEX);
+  }
+}
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Açıklamalar:
+Master tarafında: SPI.transfer() fonksiyonu hem veri göndermek hem de almak için kullanılır. Gönderdiğiniz veriyi de döndürür.
+Slave tarafında: SPI iletişimi her an veri almaya açıktır ve bu işlem, SPI.transfer() ile yapılır. Slave cihazda, verinin alınması için SPI.available() kontrol edilir.
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Ekstra Notlar:
+Bağlantılar: Arduino Mega ve Nano'nun SPI pinleri genellikle şu şekildedir:
+MOSI (Master Out Slave In): Pin 11 (Mega: 51)
+MISO (Master In Slave Out): Pin 12 (Mega: 50)
+SCK (Clock): Pin 13 (Mega: 52)
+SS (Slave Select): Pin 10 (Mega: 53)
