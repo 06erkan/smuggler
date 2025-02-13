@@ -1,0 +1,149 @@
+MPU9250'yi kütüphane kullanmadan, doğrudan I2C protokolü üzerinden okuma işlemi yapmak için, MPU9250'nin I2C adresi ve register yapılarını kullanarak veriyi okuyabilirsiniz.
+MPU9250'nin veri sayfasını referans alarak, sensörü manuel olarak başlatabilir ve verileri alabilirsiniz.
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+MPU9250 I2C İletişimi:
+MPU9250, temel olarak 0x68 adresiyle I2C üzerinden haberleşir (0x69 adresi de bazı modellerde kullanılabilir).
+Bu sensör, çeşitli register'lara sahiptir, bu register'lar üzerinden veri alınabilir.
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Adımlar:
+MPU9250'yi başlatmak için kontrol register'larına yazmanız gerekebilir.
+İvmeölçer, jiroskop ve manyetometre verileri belirli register'larda bulunur.
+Verileri almak için I2C komutlarını kullanarak bu register'lara okuma işlemi yapabilirsiniz.
+MPU9250 Register'ları:
+İvmeölçer (Accelerometer):
+X: 0x3B, Y: 0x3D, Z: 0x3F
+Jiroskop (Gyroscope):
+X: 0x43, Y: 0x45, Z: 0x47
+Manyetometre (Magnetometer):
+X: 0x03, Y: 0x05, Z: 0x07
+MPU9250'yi Kütüphane Kullanım Olmadan Arduino İle Okuma
+Aşağıda, kütüphane kullanmadan MPU9250'den veri alıp, başka bir Arduino'ya gönderecek bir örnek bulunmaktadır.
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Adım 1: MPU9250 Bağlantıları
+VCC -> 3.3V (5V kullanmak cihazın zarar görmesine neden olabilir)
+GND -> GND
+SDA -> A4 (Arduino Uno için)
+SCL -> A5 (Arduino Uno için)
+Adım 2: Kod (Veri Gönderen Arduino)
+Bu kodda MPU9250'yi başlatacak, verileri okuyacak ve I2C üzerinden göndereceğiz.
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#include <Wire.h>
+
+#define MPU9250_ADDRESS 0x68 // MPU9250'nin I2C adresi (genellikle 0x68)
+
+void setup() {
+  Serial.begin(9600);
+  Wire.begin();
+
+  // MPU9250 başlatma işlemi
+  Wire.beginTransmission(MPU9250_ADDRESS);
+  Wire.write(0x6B); // Power management register
+  Wire.write(0x00); // Wake up MPU9250
+  Wire.endTransmission();
+  delay(100);
+}
+
+void loop() {
+  // İvmeölçer verisini al
+  int16_t ax = readMPU9250(0x3B);
+  int16_t ay = readMPU9250(0x3D);
+  int16_t az = readMPU9250(0x3F);
+
+  // Jiroskop verisini al
+  int16_t gx = readMPU9250(0x43);
+  int16_t gy = readMPU9250(0x45);
+  int16_t gz = readMPU9250(0x47);
+
+  // Manyetometre verisini al
+  int16_t mx = readMPU9250(0x03);
+  int16_t my = readMPU9250(0x05);
+  int16_t mz = readMPU9250(0x07);
+
+  // Veriyi I2C üzerinden gönder
+  Wire.beginTransmission(8);  // Alıcı Arduino'nun I2C adresi
+  Wire.write((byte*)&ax, sizeof(ax));
+  Wire.write((byte*)&ay, sizeof(ay));
+  Wire.write((byte*)&az, sizeof(az));
+  Wire.write((byte*)&gx, sizeof(gx));
+  Wire.write((byte*)&gy, sizeof(gy));
+  Wire.write((byte*)&gz, sizeof(gz));
+  Wire.write((byte*)&mx, sizeof(mx));
+  Wire.write((byte*)&my, sizeof(my));
+  Wire.write((byte*)&mz, sizeof(mz));
+  Wire.endTransmission();
+
+  delay(100);  // 100ms bekle
+}
+
+// MPU9250'den veri okuma fonksiyonu
+int16_t readMPU9250(byte reg) {
+  Wire.beginTransmission(MPU9250_ADDRESS);
+  Wire.write(reg); // Register adresini yaz
+  Wire.endTransmission();
+  Wire.requestFrom(MPU9250_ADDRESS, 2); // 2 byte veri al
+  int16_t value = Wire.read() << 8 | Wire.read(); // Veriyi birleştir
+  return value;
+}
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Adım 3: Kod (Veri Alan Arduino)
+Alıcı Arduino, I2C üzerinden gelen verileri alacak ve seri port üzerinden gösterecek.
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#include <Wire.h>
+
+int16_t ax, ay, az, gx, gy, gz, mx, my, mz;
+
+void setup() {
+  Serial.begin(9600);
+  Wire.begin(8);  // Alıcı Arduino'nun I2C adresi
+  Wire.onReceive(receiveData);
+}
+
+void loop() {
+  // Verileri ekrana yazdır
+  Serial.print("İvmeölçer (m/s^2): ");
+  Serial.print("X: "); Serial.print(ax); 
+  Serial.print(" Y: "); Serial.print(ay); 
+  Serial.print(" Z: "); Serial.println(az);
+  
+  Serial.print("Jiroskop (°/s): ");
+  Serial.print("X: "); Serial.print(gx);
+  Serial.print(" Y: "); Serial.print(gy);
+  Serial.print(" Z: "); Serial.println(gz);
+  
+  Serial.print("Manyetometre (uT): ");
+  Serial.print("X: "); Serial.print(mx);
+  Serial.print(" Y: "); Serial.print(my);
+  Serial.print(" Z: "); Serial.println(mz);
+  
+  delay(100);  // 100ms bekle
+}
+
+void receiveData(int byteCount) {
+  int i = 0;
+  while (Wire.available()) {
+    byte val = Wire.read();
+    if (i < sizeof(ax)) {
+      ((byte*)&ax)[i++] = val;  // İvmeölçer verilerini al
+    }
+    else if (i < sizeof(ax) + sizeof(gx)) {
+      ((byte*)&gx)[i++ - sizeof(ax)] = val;  // Jiroskop verilerini al
+    }
+    else {
+      ((byte*)&mx)[i++ - sizeof(ax) - sizeof(gx)] = val;  // Manyetometre verilerini al
+    }
+  }
+}
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Açıklamalar:
+readMPU9250 fonksiyonu, MPU9250'den belirtilen register'dan veri okur. Bu fonksiyon, register adresini alır ve bu adresten 2 byte veri okur.
+Wire.requestFrom() komutu, I2C üzerinden veri okuma işlemi yapar. Bu komut ile belirtilen sayıda byte alınır.
+Veri Gönderimi: Veriler, Wire.write() fonksiyonu ile I2C üzerinden diğer Arduino'ya gönderilir.
+Bu kod ile, kütüphane kullanmadan MPU9250'den veri alabilir ve I2C üzerinden başka bir Arduino'ya iletebilirsiniz.
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
