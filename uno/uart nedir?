@@ -1,0 +1,59 @@
+# **UART (Universal Asynchronous Receiver-Transmitter) Nedir?**
+
+UART, iki cihaz arasında asenkron veri iletimi sağlayan bir protokoldür. **Asenkron** iletişimde, veri gönderme ve alma işlemleri için herhangi bir ortak saat sinyali kullanılmaz.
+Bunun yerine, her cihaz belirli bir **baud hızında** veri gönderir ve alır.  
+
+---
+
+### **Temel Özellikler**
+- **Asenkron Çalışma:** 
+  - Saat sinyali olmadan veri iletimi sağlar.
+  - Gönderici ve alıcı cihazlar aynı hızda çalışmak zorundadır.
+
+- **Veri Çerçevesi:**
+  - **Başlangıç Bitleri:** Veri iletiminin başladığını gösterir.
+  - **Veri Bitleri:** Gerçek iletilen veriyi temsil eder.
+  - **Bitiş Bitleri:** Veri iletiminin tamamlandığını belirtir.
+  
+- **Baud Hızı:**  
+  - Veri iletim hızını tanımlar (Örnek: 9600, 115200 bps).
+
+---
+
+### **UART Çalışma Prensibi**
+1. **Veri Gönderimi:** 
+   - Gönderen cihaz, veriyi TX (Transmit) hattı üzerinden iletir.
+2. **Veri Alımı:**  
+   - Alıcı cihaz, veriyi RX (Receive) hattı üzerinden alır.
+3. **Veri Paketleri:**
+   - Veri, belirli bir **formatta** gönderilir: Başlangıç biti + veri bitleri + bitiş biti.
+
+---
+
+### **Kullanım Alanları**
+- **Mikrodenetleyiciler:** Arduino, ESP32 gibi cihazlarla haberleşme.
+- **Bluetooth Modülleri:** HC-05, HC-06 gibi modüllerle seri haberleşme.
+- **GPS Modülleri:** Koordinat verisi alma.
+- **Seri Cihazlar:** Printerlar, sensörler gibi cihazlarla iletişim.
+
+---
+
+### **Bağlantı Tipi**
+- **TX (Transmit):** Veri gönderme hattı.
+- **RX (Receive):** Veri alma hattı.
+
+---
+
+### **Avantajları ve Dezavantajları**
+- **Avantajlar:**
+  - Basit yapı ve düşük maliyet.
+  - Seri bağlantılar için yaygın kullanım.
+
+- **Dezavantajlar:**
+  - Kısa mesafelerde daha verimli çalışır.
+  - Yüksek veri hızlarında sınırlı performans.
+
+---
+
+UART, mikrodenetleyiciler arasında sıkça kullanılan bir iletişim protokolüdür ve veri iletimi için düşük maliyetli ve verimli bir çözümdür.
+
