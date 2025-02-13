@@ -1,0 +1,79 @@
+# 📡 Arduino Uno & Nano Seri Haberleşme
+
+Bu proje, **Arduino Uno (Gönderici)** ve **Arduino Nano (Alıcı)** arasında **SoftwareSerial** kütüphanesi kullanılarak yapılan seri haberleşmeyi gösterir.
+
+## 📌 Bağlantılar
+
+| Uno (Gönderici) | Nano (Alıcı) |
+|---------------|-------------|
+| TX (11)      | RX (10)     |
+| RX (10)      | TX (11)     |
+| GND          | GND         |
+
+## 📜 Açıklama
+- **Arduino Uno (Gönderici)**: "Merhaba Nano!" mesajını gönderir ve Nano'dan gelen cevabı okur.
+- **Arduino Nano (Alıcı)**: Uno'dan gelen mesajı alır, seri monitöre yazar ve "Nano: Mesaj alındı!" şeklinde geri cevap gönderir.
+
+## 📝 Kodlar
+
+### 🎯 Uno (Gönderici) Kodu
+```cpp````````````````````````````````````````````````````````````````````````````````````````````````````````
+#include <SoftwareSerial.h>
+
+SoftwareSerial mySerial(10, 11); // RX, TX
+
+void setup() {
+  Serial.begin(9600);     // Bilgisayar seri monitörü için
+  mySerial.begin(9600);   // Nano ile haberleşme
+
+  delay(1000);
+  Serial.println("Başlatılıyor...");
+}
+
+void loop() {
+  mySerial.println("Merhaba Nano!");
+  Serial.println("Uno: Mesaj gönderildi.");
+  
+  delay(1000); // Mesaj gönderme aralığı
+
+  if (mySerial.available()) {  // Nano'dan gelen veri var mı?
+    String response = mySerial.readStringUntil('\n');
+    Serial.print("Nano'dan Gelen Cevap: ");
+    Serial.println(response);
+  }
+  
+  delay(2000);
+}
+````````````````````````````````````````````````````````````````````````````````````````````````````````````
+
+### 🔥 Nano (Alıcı) Kodu
+```cpp
+#include <SoftwareSerial.h>
+
+SoftwareSerial mySerial(10, 11); // RX, TX
+
+void setup() {
+  Serial.begin(9600);
+  mySerial.begin(9600);
+}
+
+void loop() {
+  if (mySerial.available()) {  // Uno'dan veri alındı mı?
+    String receivedText = mySerial.readStringUntil('\n');
+    Serial.print("Uno'dan Gelen: ");
+    Serial.println(receivedText);
+
+    delay(500);
+    
+    mySerial.println("Nano: Mesaj alındı!");
+  }
+}
+````````````````````````````````````````````````````````````````````````````````````````````````````````````
+
+## 🎯 Nasıl Kullanılır?
+1. **Bağlantıları** yukarıdaki tabloya göre yapın.
+2. **Uno (Gönderici) kodunu** Arduino Uno'ya yükleyin.
+3. **Nano (Alıcı) kodunu** Arduino Nano'ya yükleyin.
+4. Her iki kartın **seri monitörünü** açarak haberleşmeyi gözlemleyin.
+
+🚀 **Başarılar!**
