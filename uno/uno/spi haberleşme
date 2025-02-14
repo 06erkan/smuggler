@@ -12,45 +12,152 @@ SS (Slave Select): Slave cihazı seçmek için kullanılır.
 2. Master (Veri Gönderen Arduino) Kod Örneği:
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+#define MPU_CS 53   // MPU-9250 Chip Select pini
+#define SLAVE_SS 8  // Slave için SS pini
+#define SCK_PIN 52  // SPI SCK pini
+#define MOSI_PIN 51 // SPI MOSI pini
+#define MISO_PIN 50 // SPI MISO pini
+
+// MPU-9250 Register Adresleri
+#define MPU_ACCEL_XOUT_H 0x3B  
+
 void setup() {
-  // SPI Master cihazını başlat
-  SPI.begin();
-  pinMode(SS, OUTPUT);  // Slave cihazını seçmek için SS pinini OUTPUT yapıyoruz
-  Serial.begin(9600);  // Seri haberleşme başlatılıyor
+    Serial.begin(115200);
+    
+    pinMode(MPU_CS, OUTPUT);
+    pinMode(SLAVE_SS, OUTPUT);
+    pinMode(SCK_PIN, OUTPUT);
+    pinMode(MOSI_PIN, OUTPUT);
+    pinMode(MISO_PIN, INPUT);
+
+    digitalWrite(MPU_CS, HIGH);
+    digitalWrite(SLAVE_SS, HIGH);
+    digitalWrite(SCK_PIN, LOW);
+
+    Serial.println("MPU-9250 ve SPI Başlatıldı!");
 }
 
 void loop() {
-  digitalWrite(SS, LOW);  // Slave cihazını seç
-  byte dataToSend = 0x42; // Göndereceğiniz veri (örneğin 0x42)
-  byte receivedData = SPI.transfer(dataToSend); // Veri gönder ve al
-  Serial.print("Gönderilen veri: ");
-  Serial.println(dataToSend, HEX);
-  Serial.print("Alınan veri: ");
-  Serial.println(receivedData, HEX);
-  digitalWrite(SS, HIGH); // Slave cihazını serbest bırak
-  delay(1000); // 1 saniye bekle
+    int16_t ax, ay, az;
+
+    // MPU-9250’den ivme verisini oku
+    readMPU9250Accel(ax, ay, az);
+
+    Serial.print("İvme X: "); Serial.print(ax);
+    Serial.print(" Y: "); Serial.print(ay);
+    Serial.print(" Z: "); Serial.println(az);
+
+    // Slave’a veri gönder
+    digitalWrite(SLAVE_SS, LOW);
+
+    shiftOutManual(MOSI_PIN, SCK_PIN, highByte(ax));
+    shiftOutManual(MOSI_PIN, SCK_PIN, lowByte(ax));
+
+    shiftOutManual(MOSI_PIN, SCK_PIN, highByte(ay));
+    shiftOutManual(MOSI_PIN, SCK_PIN, lowByte(ay));
+
+    shiftOutManual(MOSI_PIN, SCK_PIN, highByte(az));
+    shiftOutManual(MOSI_PIN, SCK_PIN, lowByte(az));
+
+    digitalWrite(SLAVE_SS, HIGH);
+
+    delay(500);
 }
+
+// 🟢 MPU-9250'den SPI ile veri okuma (Manuel SPI)
+void readMPU9250Accel(int16_t &ax, int16_t &ay, int16_t &az) {
+    digitalWrite(MPU_CS, LOW);  // MPU'yu seç
+
+    sendSPIByte(MPU_ACCEL_XOUT_H | 0x80); // Okuma komutu gönder
+
+    uint8_t accelX_H = receiveSPIByte();
+    uint8_t accelX_L = receiveSPIByte();
+    uint8_t accelY_H = receiveSPIByte();
+    uint8_t accelY_L = receiveSPIByte();
+    uint8_t accelZ_H = receiveSPIByte();
+    uint8_t accelZ_L = receiveSPIByte();
+
+    digitalWrite(MPU_CS, HIGH);  // MPU'yu bırak
+
+    ax = (accelX_H << 8) | accelX_L;
+    ay = (accelY_H << 8) | accelY_L;
+    az = (accelZ_H << 8) | accelZ_L;
+}
+
+// 🟢 SPI ile 8 bit veri gönderme (Manuel SPI)
+void sendSPIByte(uint8_t data) {
+    for (int8_t i = 7; i >= 0; i--) {
+        digitalWrite(MOSI_PIN, (data >> i) & 0x01); // MOSI'ye bit yaz
+        digitalWrite(SCK_PIN, HIGH);  // Saat sinyalini yükselt
+        delayMicroseconds(1);
+        digitalWrite(SCK_PIN, LOW);   // Saat sinyalini düşür
+    }
+}
+
+// 🔵 SPI ile 8 bit veri alma (Manuel SPI)
+uint8_t receiveSPIByte() {
+    uint8_t value = 0;
+    for (int8_t i = 7; i >= 0; i--) {
+        digitalWrite(SCK_PIN, HIGH);  // Saat sinyalini yükselt
+        delayMicroseconds(1);
+        value |= (digitalRead(MISO_PIN) << i); // MOSI'den gelen bit'i oku
+        digitalWrite(SCK_PIN, LOW);   // Saat sinyalini düşür
+    }
+    return value;
+}
+
+// 🔴 SPI ile Slave cihaza 8 bit veri gönderme (Manuel SPI)
+void shiftOutManual(uint8_t dataPin, uint8_t clockPin, uint8_t val) {
+    for (int8_t i = 7; i >= 0; i--) {
+        digitalWrite(dataPin, (val >> i) & 0x01); // MOSI'ye veri yaz
+        digitalWrite(clockPin, HIGH);  // Saat sinyalini yükselt
+        delayMicroseconds(1);
+        digitalWrite(clockPin, LOW);   // Saat sinyalini düşür
+    }
+}
+
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 3. Slave (Veri Okuyan Arduino) Kod Örneği:
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#include <SPI.h>
+#define SLAVE_SS 8  // Slave SS pini
+#define SCK_PIN 5   // SPI SCK pini
+#define MOSI_PIN 6  // SPI MOSI pini
+#define MISO_PIN 7  // SPI MISO pini (bu kodda kullanılmıyor çünkü veri sadece alınıyor)
 
-volatile byte receivedData = 0;
+volatile int16_t ax, ay, az;
 
 void setup() {
-  // SPI Slave cihazını başlat
-  SPI.begin();
-  pinMode(MISO, OUTPUT); // Slave cihazı veri gönderebilir
-  Serial.begin(9600);    // Seri haberleşme başlatılıyor
-  SPCR |= _BV(SPE);      // SPI'yi çalıştırmak için SPE bitini set et
+    Serial.begin(115200);
+    pinMode(SCK_PIN, INPUT);   // Saat sinyali (Master tarafından kontrol edilir)
+    pinMode(MOSI_PIN, INPUT);  // Veri girişi (Master'dan veri almak için)
+    pinMode(MISO_PIN, OUTPUT); // (Eğer Master’a veri göndereceksen kullanılabilir)
+    pinMode(SLAVE_SS, INPUT);  // Slave Select pini (Master düşük yaparsa veri alırız)
+    digitalWrite(MISO_PIN, LOW); // Başlangıçta LOW
+
+    Serial.println("SPI Slave Başlatıldı!");
 }
 
 void loop() {
-  if (SPI.available()) {
-    receivedData = SPI.transfer(0x00); // Slave cihazı veri alır
-    Serial.print("Alınan veri: ");
-    Serial.println(receivedData, HEX);
-  }
+    if (digitalRead(SLAVE_SS) == LOW) {  // SS düşükse veri geliyordur
+        ax = (readSPI() << 8) | readSPI(); // X ekseni verisi (16 bit)
+        ay = (readSPI() << 8) | readSPI(); // Y ekseni verisi (16 bit)
+        az = (readSPI() << 8) | readSPI(); // Z ekseni verisi (16 bit)
+
+        Serial.print("X: "); Serial.print(ax);
+        Serial.print(" Y: "); Serial.print(ay);
+        Serial.print(" Z: "); Serial.println(az);
+    }
+}
+
+// SPI üzerinden 8 bit veri okuma fonksiyonu (Kütüphane kullanılmadan)
+uint8_t readSPI() {
+    uint8_t value = 0;
+    for (int i = 0; i < 8; i++) {  // 8 bit oku
+        while (digitalRead(SCK_PIN) == LOW);  // Saat sinyalinin HIGH olmasını bekle
+        value = (value << 1) | digitalRead(MOSI_PIN); // MOSI'den gelen bit'i oku
+        while (digitalRead(SCK_PIN) == HIGH); // Saat sinyalinin LOW olmasını bekle
+    }
+    return value;
 }
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Açıklamalar:
